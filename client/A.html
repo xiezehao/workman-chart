@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <div id="txtcontent" style="width: 500px;height: 250px;border: 1px solid gray"></div>
+
+    <div>所有用户：<select id="listuers"></select></div>
+
+    <div>你的昵称：<input type="text" id="username"/></div>
+
+    <div>
+        回复内容：
+        <textarea style="width: 500px;height: 100px;" id="txtmsg"></textarea>
+    </div>
+
+    <div>
+        <button onclick="connectServer()">链接服务器</button>
+        <button onclick="send()">发送消息</button>
+    </div>
+
+    <script>
+        //创建一个socket实例
+        var socket=null;//实处为null
+        var isLogin=false;//是否登录到服务器上
+
+        //定义一个连服务的函数
+        function connectServer() {
+
+            var username=document.getElementById("username").value;
+            if(username==""){
+                alert("用户呢称必填");
+
+            }
+
+            socket=new WebSocket("ws://192.168.1.101:8080");
+
+            socket.onopen=function () {
+                console.log(1111);
+                socket.send("login:"+username);
+            }
+
+            socket.onmessage=function (e) {
+                console.log(2222);
+                var getMsg=e.data;
+                if(/^notice:success$/.test(getMsg)){
+                    //服务器验证通过
+                    isLogin=true;
+
+                }
+                else if(/^msg:/.test(getMsg)){
+                    //代表是普通消息
+                    var p=document.createElement("p");
+                    p.innerHTML="<span>收到消息：</span>"+getMsg.replace("msg:","");
+                    document.getElementById("txtcontent").appendChild(p);
+
+                }
+
+                if(/^users:/.test(getMsg)){
+                    getMsg=getMsg.replace("users:","");
+                    getMsg=eval("("+getMsg+")");//转json
+
+                    var listusers=document.getElementById("listuers");
+                    listusers.innerHTML="";
+
+                    for(var key in getMsg){
+                        var option=document.createElement("option");
+                        option.value=key;//ip
+                        option.innerHTML=getMsg[key];
+                        listusers.appendChild(option);
+                    }
+                }
+            }
+
+            socket.onclose=function () {
+                isLogin=false;
+            }
+
+        }
+
+        //发送消息
+        function send() {
+            if(!isLogin){
+                alert("请先通过服务器验证");
+            }
+
+            var msg=document.getElementById("txtmsg").value;
+            socket.send("msg"+msg);
+            var listusers=document.getElementById("listuers");
+            var toUserIpp=listusers.options[listusers.selectedIndex].value;
+            var toUserName=listusers.options[listusers.selectedIndex].text;
+            socket.send("chat:<"+toUserIpp+">:"+msg);//发送 消息到服务器
+            var p=document.createElement("p");
+            p.innerHTML="<span>回到消息：["+toUserName+"]</span>"+msg;
+            document.getElementById("txtcontent").appendChild(p);
+
+
+
+        }
+    </script>
+</body>
+</html>
